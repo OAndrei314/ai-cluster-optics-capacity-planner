@@ -1,5 +1,5 @@
 """AI-cluster optics capacity planning."""
 
-from .planner import ClusterProfile, plan_optics
+from .planner import ClusterProfile, TopologyProfile, compare_topologies, plan_optics, plan_topology
 
-__all__ = ["ClusterProfile", "plan_optics"]
+__all__ = ["ClusterProfile", "TopologyProfile", "compare_topologies", "plan_optics", "plan_topology"]

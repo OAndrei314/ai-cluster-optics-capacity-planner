@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,22 @@ class ClusterProfile:
     optical_link_rate_gbps: float
     transceiver_power_w: float
     transceiver_cost_usd: float
+
+
+@dataclass(frozen=True)
+class TopologyProfile:
+    name: str
+    link_multiplier: float
+    redundancy_factor: float
+    hop_count: int
+    latency_per_hop_ns: float
+
+
+DEFAULT_TOPOLOGIES = (
+    TopologyProfile("leaf-spine", 1.0, 1.15, 4, 250.0),
+    TopologyProfile("rail-optimized", 0.72, 1.08, 2, 180.0),
+    TopologyProfile("dragonfly-plus", 0.86, 1.12, 3, 220.0),
+)
 
 
 def plan_optics(profile: ClusterProfile) -> dict[str, float]:
@@ -33,6 +49,34 @@ def plan_optics(profile: ClusterProfile) -> dict[str, float]:
         "optics_capex_usd": round(optics_capex_usd, 2),
         "capex_per_gpu_usd": round(optics_capex_usd / profile.gpu_count, 2),
     }
+
+
+def plan_topology(profile: ClusterProfile, topology: TopologyProfile) -> dict[str, float | str]:
+    if topology.link_multiplier <= 0 or topology.redundancy_factor <= 0:
+        raise ValueError("topology multipliers must be positive")
+    adjusted = replace(
+        profile,
+        bandwidth_per_gpu_gbps=profile.bandwidth_per_gpu_gbps * topology.link_multiplier * topology.redundancy_factor,
+    )
+    plan = plan_optics(adjusted)
+    power_per_tbps_kw = float(plan["optical_power_kw"]) / max(float(plan["required_tbps"]), 1e-9)
+    cost_pressure = min(1.0, float(plan["capex_per_gpu_usd"]) / 5000.0 + power_per_tbps_kw / 40.0)
+    return {
+        "topology": topology.name,
+        **plan,
+        "fabric_latency_ns": round(topology.hop_count * topology.latency_per_hop_ns, 1),
+        "power_per_tbps_kw": round(power_per_tbps_kw, 3),
+        "cost_pressure_score": round(cost_pressure, 3),
+    }
+
+
+def compare_topologies(
+    profile: ClusterProfile,
+    topologies: tuple[TopologyProfile, ...] = DEFAULT_TOPOLOGIES,
+) -> list[dict[str, float | str]]:
+    plans = [plan_topology(profile, topology) for topology in topologies]
+    plans.sort(key=lambda item: (float(item["cost_pressure_score"]), float(item["fabric_latency_ns"]), str(item["topology"])))
+    return plans
 
 
 def sample_profile() -> ClusterProfile:

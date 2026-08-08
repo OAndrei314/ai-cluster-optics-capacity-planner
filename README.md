@@ -22,10 +22,18 @@ python -m pytest -q
 python -m cluster_optics_planner
 ```
 
+## Silicon Valley Interview Hook
+
+The `compare_topologies()` API ranks leaf-spine, rail-optimized and dragonfly-style
+assumptions by optical power, capex, latency and cost pressure. That turns the repo into a
+tool for the real AI-cluster question: whether the network fabric is the next bottleneck
+before another GPU purchase pays off.
+
 ## Status
 
-MVP: cluster profile, optical-link plan, power and capex estimates, and tests. Next steps:
-add topology profiles for rail-optimized and dragonfly-style fabrics.
+MVP: cluster profile, optical-link plan, power/capex estimates, topology comparison and
+tests. Next steps: add topology profiles from measured rail-optimized and dragonfly-style
+fabrics.
 
 ## License
 
